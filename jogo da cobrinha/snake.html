@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Cobrinha</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #282c34;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+        canvas {
+            border: 2px solid #000;
+            background-color: #f0f0f0;
+            image-rendering: pixelated;
+        }
+        .info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+        }
+        .controls {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .controls button {
+            width: 60px;
+            height: 60px;
+            margin: 5px;
+            font-size: 20px;
+            background-color: #fff;
+            border: 2px solid #000;
+            border-radius: 50%; /* Transforma os botões em círculos */
+            cursor: pointer;
+        }
+        .control-row {
+            display: flex;
+            justify-content: center;
+        }
+        .start-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .controls {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <span id="score">Score: 0</span>
+    </div>
+    <canvas id="gameCanvas" width="800" height="800"></canvas>
+    <div class="controls">
+        <div class="control-row">
+            <button id="up">↑</button>
+        </div>
+        <div class="control-row">
+            <button id="left">←</button>
+            <button id="down">↓</button>
+            <button id="right">→</button>
+        </div>
+    </div>
+    <button class="start-button" onclick="startGame()">Iniciar Jogo</button>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const box = 40; // Tamanho da cobra e da maçã
+        const canvasSize = 800; // Tamanho do canvas
+        let snake = [{ x: 200, y: 200 }];
+        let direction = 'right';
+        let food = getRandomFoodPosition();
+        let score = 0;
+        let speed = 200; // Velocidade inicial em milissegundos
+        const initialSpeed = 200; // Velocidade inicial
+        const speedIncreaseFactor = 0.9; // Fator de aumento da velocidade
+
+        // Carregar a imagem da maçã com tamanho aumentado
+        const appleImage = new Image();
+        appleImage.src = 'https://superprix.vteximg.com.br/arquivos/ids/175207-600-600/Maca-Argentina--1-unidade-aprox.-200g-.png?v=636294203590200000';
+        appleImage.width = box; // Tamanho da imagem da maçã
+
+        document.addEventListener('keydown', directionControl);
+
+        // Adicionar controle de toque
+        document.getElementById('up').addEventListener('click', () => setDirection('up'));
+        document.getElementById('down').addEventListener('click', () => setDirection('down'));
+        document.getElementById('left').addEventListener('click', () => setDirection('left'));
+        document.getElementById('right').addEventListener('click', () => setDirection('right'));
+
+        function setDirection(newDirection) {
+            if (newDirection === 'up' && direction !== 'down') direction = 'up';
+            if (newDirection === 'down' && direction !== 'up') direction = 'down';
+            if (newDirection === 'left' && direction !== 'right') direction = 'left';
+            if (newDirection === 'right' && direction !== 'left') direction = 'right';
+        }
+
+        function directionControl(event) {
+            if (event.key === 'ArrowUp' && direction !== 'down') direction = 'up';
+            if (event.key === 'ArrowDown' && direction !== 'up') direction = 'down';
+            if (event.key === 'ArrowLeft' && direction !== 'right') direction = 'left';
+            if (event.key === 'ArrowRight' && direction !== 'left') direction = 'right';
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Desenhar a comida como uma maçã (com tamanho aumentado)
+            ctx.drawImage(appleImage, food.x, food.y, box, box);
+
+            ctx.fillStyle = 'green';
+            snake.forEach(part => {
+                ctx.beginPath();
+                ctx.arc(part.x + box / 2, part.y + box / 2, box / 2, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = 'darkgreen';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            if (direction === 'right') snakeX += box;
+            if (direction === 'left') snakeX -= box;
+            if (direction === 'up') snakeY -= box;
+            if (direction === 'down') snakeY += box;
+
+            // Verificar colisão com a parede
+            if (snakeX >= canvas.width || snakeX < 0 || snakeY >= canvas.height || snakeY < 0) {
+                gameOver();
+                return;
+            }
+
+            if (snakeX === food.x && snakeY === food.y) {
+                score++;
+                document.getElementById('score').textContent = 'Score: ' + score;
+                food = getRandomFoodPosition();
+                // Aumentar a velocidade da cobra
+                speed *= speedIncreaseFactor; // Aumenta a velocidade conforme o fator definido
+            } else {
+                snake.pop();
+            }
+
+            let newHead = { x: snakeX, y: snakeY };
+            snake.unshift(newHead);
+
+            if (collision(newHead, snake.slice(1))) {
+                gameOver();
+            }
+
+            // Solicitar a próxima renderização
+            setTimeout(() => {
+                requestAnimationFrame(draw);
+            }, speed);
+        }
+
+        function startGame() {
+            document.querySelector('.start-button').style.display = 'none';
+            document.querySelector('.controls').style.display = 'flex';
+            draw(); // Iniciar o jogo
+        }
+
+        function gameOver() {
+            alert('Game Over! Seu score: ' + score);
+            document.querySelector('.start-button').style.display = 'block';
+            document.querySelector('.controls').style.display = 'none';
+            snake = [{ x: 200, y: 200 }];
+            direction = 'right';
+            score = 0;
+            document.getElementById('score').textContent = 'Score: ' + score;
+            speed = initialSpeed; // Reiniciar a velocidade inicial
+            food = getRandomFoodPosition();
+        }
+
+        function getRandomFoodPosition() {
+            return {
+                x: Math.floor(Math.random() * (canvasSize / box)) * box,
+                y: Math.floor(Math.random() * (canvasSize / box)) * box
+            };
+        }
+
+        function collision(head, array) {
+            for (let i = 0; i < array.length; i++) {
+                if (head.x === array[i].x && head.y === array[i].y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+    </script>
+</body>
+</html>
